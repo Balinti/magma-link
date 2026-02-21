@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Magma Link - Free HTML5 Game</title>
+  <meta name="description" content="Play Magma Link - Swipe to connect glowing lava dots before the molten flow cools them down.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a0500">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Magma Link - Free HTML5 Game">
+  <meta property="og:description" content="Play Magma Link - Swipe to connect glowing lava dots before the molten flow cools them down.">
+  <meta property="og:url" content="https://balinti.github.io/magma-link/">
+  <meta property="og:image" content="https://balinti.github.io/magma-link/preview.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Magma Link - Free HTML5 Game">
+  <meta name="twitter:description" content="Play Magma Link - Swipe to connect glowing lava dots before the molten flow cools them down.">
+  <meta name="twitter:image" content="https://balinti.github.io/magma-link/preview.png">
+
+  <!-- AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4099346100621490" crossorigin="anonymous"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: radial-gradient(ellipse at 50% 20%, #2a0800 0%, #0d0100 60%, #000 100%);
+      min-height: 100dvh;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      overflow-x: hidden;
+      color: #fff;
+    }
+
+    #game-wrap {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 0;
+    }
+
+    #ui-bar {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 14px;
+      background: rgba(0,0,0,0.45);
+      border-bottom: 1px solid rgba(255,100,0,0.2);
+    }
+
+    .ui-label { font-size: 11px; color: #ff8844; letter-spacing: 1px; text-transform: uppercase; }
+    .ui-val   { font-size: 22px; font-weight: 700; color: #ffcc44; text-shadow: 0 0 10px #ff6600; }
+
+    #chain-info {
+      font-size: 12px;
+      color: #ffaa55;
+      letter-spacing: 0.5px;
+      min-height: 18px;
+      text-align: center;
+    }
+
+    canvas {
+      display: block;
+      touch-action: none;
+      cursor: pointer;
+    }
+
+    #seo-section {
+      width: 100%;
+      max-width: 420px;
+      margin-top: 12px;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,80,0,0.2);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    #seo-toggle {
+      width: 100%;
+      background: none;
+      border: none;
+      color: #ff8844;
+      font-size: 12px;
+      padding: 8px 14px;
+      text-align: left;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+    }
+
+    #seo-toggle:hover { background: rgba(255,80,0,0.08); }
+
+    #seo-body {
+      display: none;
+      padding: 10px 14px 14px;
+      font-size: 12px;
+      line-height: 1.65;
+      color: #bbb;
+    }
+
+    #seo-body h2 { font-size: 13px; color: #ff8844; margin: 10px 0 4px; }
+    #seo-body p  { margin-bottom: 6px; }
+    #seo-body.open { display: block; }
+  </style>
+</head>
+<body>
+<div id="game-wrap">
+  <div id="ui-bar">
+    <div>
+      <div class="ui-label">Score</div>
+      <div class="ui-val" id="ui-score">0</div>
+    </div>
+    <div id="chain-info"></div>
+    <div style="text-align:right">
+      <div class="ui-label">Best</div>
+      <div class="ui-val" id="ui-best">0</div>
+    </div>
+  </div>
+  <canvas id="c"></canvas>
+  <div id="seo-section">
+    <button id="seo-toggle">&#9660; How to Play &amp; About</button>
+    <div id="seo-body">
+      <h2>What is Magma Link?</h2>
+      <p>Magma Link is a free hyper-casual browser game where you chain lava nodes together before they cool into solid crust. Tap to cash out your chain at just the right moment!</p>
+      <h2>How to Play</h2>
+      <p><strong>Tap / Space / Enter</strong> to start a chain. The chain auto-links to nearby hot nodes on every beat. Tap again to <em>snap</em> (cash out) before the chain hits a cooled crust node and breaks. Walls block line-of-sight — plan your route!</p>
+      <h2>Scoring</h2>
+      <p>Each link in your chain scores points. Longer chains earn a multiplier bonus. An eruption burst fires on cash-out — the bigger the chain, the bigger the burst!</p>
+      <h2>FAQ</h2>
+      <p><strong>Does it save my score?</strong> Yes — your best score is saved locally in your browser.</p>
+      <p><strong>Does it need internet?</strong> No — runs offline once loaded.</p>
+      <p><strong>Mobile friendly?</strong> Yes — optimized for touch on phones and tablets.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Constants ───────────────────────────────────────────────────────────────
+const LS_KEY = 'ml_high';
+const COLS = 7, ROWS = 10;
+const BASE_COOL_RATE   = 0.018;   // heat lost per frame at 60fps
+const BASE_BEAT_TIME   = 0.30;    // seconds per auto-link
+const BASE_CHAIN_RANGE = 105;     // max link distance px
+const MIN_CHAIN_RANGE  = 62;
+const MIN_BEAT_TIME    = 0.16;
+const MAX_COOL_RATE    = 0.048;
+const PARTICLE_CAP     = 180;
+const WALL_CAP         = 32;
+
+// ─── DOM ─────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const uiScore = document.getElementById('ui-score');
+const uiBest  = document.getElementById('ui-best');
+const chainInfo = document.getElementById('chain-info');
+
+document.getElementById('seo-toggle').addEventListener('click', () => {
+  const b = document.getElementById('seo-body');
+  b.classList.toggle('open');
+  document.getElementById('seo-toggle').textContent =
+    b.classList.contains('open') ? '▲ How to Play & About' : '▼ How to Play & About';
+});
+
+// ─── Canvas sizing ───────────────────────────────────────────────────────────
+let DPR = window.devicePixelRatio || 1;
+let CW, CH, cellW, cellH;
+
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  const maxW = Math.min(window.innerWidth, 420);
+  const maxH = Math.min(window.innerHeight - 70, 750);
+  CW = maxW;
+  CH = Math.min(maxH, maxW * (10/7));
+  canvas.style.width  = CW + 'px';
+  canvas.style.height = CH + 'px';
+  canvas.width  = Math.round(CW * DPR);
+  canvas.height = Math.round(CH * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  cellW = CW / COLS;
+  cellH = CH / ROWS;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let state = 'start';  // 'start' | 'playing' | 'gameover'
+let score = 0;
+let best  = parseInt(localStorage.getItem(LS_KEY)) || 0;
+let nodes = [];
+let walls = [];
+let particles = [];
+let chain = [];        // indices of linked nodes
+let chainActive = false;
+let beatTimer  = 0;
+let hue = 0;
+let shakeMag = 0;
+let shakeDecay = 0;
+let elapsed = 0;       // total play time for difficulty
+let lastTime = 0;
+
+// ─── Node helpers ─────────────────────────────────────────────────────────────
+function makeNodes() {
+  nodes = [];
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const jx = (Math.random() - 0.5) * cellW * 0.55;
+      const jy = (Math.random() - 0.5) * cellH * 0.55;
+      nodes.push({
+        x: cellW * (col + 0.5) + jx,
+        y: cellH * (row + 0.5) + jy,
+        heat: 0.55 + Math.random() * 0.45,
+        crust: false,
+        pulseT: Math.random() * Math.PI * 2
+      });
+    }
+  }
+  walls = [];
+  // start a couple of nodes already warm
+  nodes.forEach((n, i) => {
+    if (Math.random() < 0.12) {
+      n.heat = 1.0;
+    }
+  });
+}
+
+function nodeRadius(n) {
+  return 7 + n.heat * 6;
+}
+
+function heatColor(heat, alpha) {
+  const h = 20 + (1 - heat) * 30;
+  const s = 90 + heat * 10;
+  const l = 35 + heat * 40;
+  return `hsla(${h},${s}%,${l}%,${alpha ?? 1})`;
+}
+
+// ─── Difficulty ───────────────────────────────────────────────────────────────
+function diffCoolRate() {
+  return Math.min(MAX_COOL_RATE, BASE_COOL_RATE + elapsed * 0.0008);
+}
+function diffBeatTime() {
+  return Math.max(MIN_BEAT_TIME, BASE_BEAT_TIME - elapsed * 0.005);
+}
+function diffChainRange() {
+  return Math.max(MIN_CHAIN_RANGE, BASE_CHAIN_RANGE - elapsed * 0.4);
+}
+
+// ─── Wall helpers ─────────────────────────────────────────────────────────────
+function addWall(n) {
+  if (walls.length >= WALL_CAP) walls.shift();
+  const ang = Math.random() * Math.PI;
+  const len = cellW * (0.3 + Math.random() * 0.4);
+  walls.push({
+    x: n.x, y: n.y, ang, len,
+    ax: n.x + Math.cos(ang) * len * 0.5,
+    ay: n.y + Math.sin(ang) * len * 0.5,
+    bx: n.x - Math.cos(ang) * len * 0.5,
+    by: n.y - Math.sin(ang) * len * 0.5,
+    alpha: 0.85
+  });
+}
+
+function segSegIntersect(ax,ay,bx,by,cx,cy,dx,dy) {
+  const d1x = bx-ax, d1y = by-ay;
+  const d2x = dx-cx, d2y = dy-cy;
+  const cross = d1x*d2y - d1y*d2x;
+  if (Math.abs(cross) < 1e-8) return false;
+  const t = ((cx-ax)*d2y - (cy-ay)*d2x) / cross;
+  const u = ((cx-ax)*d1y - (cy-ay)*d1x) / cross;
+  return t > 0.02 && t < 0.98 && u > 0.02 && u < 0.98;
+}
+
+function lineBlockedByWalls(x1,y1,x2,y2) {
+  for (const w of walls) {
+    if (segSegIntersect(x1,y1,x2,y2, w.ax,w.ay, w.bx,w.by)) return true;
+  }
+  return false;
+}
+
+// ─── Particles ────────────────────────────────────────────────────────────────
+function spawnParticles(x, y, count, speed, hueOff, sizeRange) {
+  for (let i = 0; i < count && particles.length < PARTICLE_CAP; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const spd = speed * (0.4 + Math.random());
+    particles.push({
+      x, y,
+      vx: Math.cos(ang) * spd,
+      vy: Math.sin(ang) * spd - speed * 0.3,
+      life: 1,
+      decay: 0.018 + Math.random() * 0.025,
+      size: (sizeRange[0] + Math.random() * (sizeRange[1]-sizeRange[0])),
+      hue: hueOff + (Math.random()-0.5)*30
+    });
+  }
+}
+
+function eruptionBurst(x, y, chainLen) {
+  const count = Math.min(12 + chainLen * 4, 50);
+  spawnParticles(x, y, count, 4 + chainLen * 0.5, 20, [3, 9]);
+}
+
+// ─── Chain logic ──────────────────────────────────────────────────────────────
+function bestTarget(fromNode) {
+  const range = diffChainRange();
+  let best = null, bestScore = -Infinity;
+  for (let i = 0; i < nodes.length; i++) {
+    if (chain.includes(i)) continue;
+    const n = nodes[i];
+    if (n.crust) continue;
+    const dx = n.x - fromNode.x, dy = n.y - fromNode.y;
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    if (dist > range) continue;
+    if (lineBlockedByWalls(fromNode.x, fromNode.y, n.x, n.y)) continue;
+    const sc = n.heat * 2 - dist / range;
+    if (sc > bestScore) { bestScore = sc; best = i; }
+  }
+  return best;
+}
+
+function forcedTarget(fromNode) {
+  // fallback: nearest node in range ignoring walls/crust
+  const range = diffChainRange() * 1.3;
+  let bestIdx = null, bestDist = Infinity;
+  for (let i = 0; i < nodes.length; i++) {
+    if (chain.includes(i)) continue;
+    const n = nodes[i];
+    const dx = n.x - fromNode.x, dy = n.y - fromNode.y;
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    if (dist < range && dist < bestDist) { bestDist = dist; bestIdx = i; }
+  }
+  return bestIdx;
+}
+
+function snapChain(forced) {
+  if (!chainActive || chain.length === 0) return;
+  const chainLen = chain.length;
+  const last = nodes[chain[chain.length-1]];
+  // eruption
+  eruptionBurst(last.x, last.y, chainLen);
+  spawnParticles(last.x, last.y, 8, 2, 30, [2,5]);
+
+  if (!forced && chainLen > 1) {
+    const mult = 1 + Math.floor((chainLen - 1) / 2) * 0.5;
+    const gain = Math.round(chainLen * 10 * mult);
+    score += gain;
+    uiScore.textContent = score;
+    if (score > best) {
+      best = score;
+      localStorage.setItem(LS_KEY, best);
+      uiBest.textContent = best;
+    }
+    // shake briefly
+    shakeMag = 3; shakeDecay = 0.88;
+  }
+
+  chainActive = false;
+  chain = [];
+  chainInfo.textContent = '';
+  beatTimer = 0;
+}
+
+function advanceChain() {
+  if (!chainActive || chain.length === 0) return;
+  const fromNode = nodes[chain[chain.length-1]];
+  const tIdx = bestTarget(fromNode);
+
+  if (tIdx !== null) {
+    chain.push(tIdx);
+    const n = nodes[tIdx];
+    n.heat = Math.min(1, n.heat + 0.15); // re-heat linked node
+    spawnParticles(n.x, n.y, 5, 2.5, 20, [2,6]);
+    shakeMag = 1.5; shakeDecay = 0.85;
+    updateChainInfo();
+  } else {
+    // try forced
+    const fi = forcedTarget(fromNode);
+    if (fi !== null && nodes[fi].crust) {
+      snapChain(true);
+      endGame();
+      return;
+    } else if (fi !== null) {
+      chain.push(fi);
+      snapChain(true);
+      endGame();
+      return;
+    } else {
+      snapChain(true);
+      endGame();
+      return;
+    }
+  }
+}
+
+function updateChainInfo() {
+  if (!chainActive || chain.length === 0) { chainInfo.textContent = ''; return; }
+  const len = chain.length;
+  const mult = 1 + Math.floor((len - 1) / 2) * 0.5;
+  chainInfo.textContent = `Chain ×${len}  ×${mult.toFixed(1)}`;
+}
+
+// ─── Game flow ────────────────────────────────────────────────────────────────
+function startGame() {
+  score = 0;
+  elapsed = 0;
+  uiScore.textContent = '0';
+  uiBest.textContent = best;
+  chain = [];
+  chainActive = false;
+  particles = [];
+  walls = [];
+  hue = 0;
+  shakeMag = 0;
+  beatTimer = 0;
+  chainInfo.textContent = '';
+  makeNodes();
+  state = 'playing';
+}
+
+function endGame() {
+  chainActive = false;
+  chain = [];
+  chainInfo.textContent = '';
+  if (score > best) {
+    best = score;
+    localStorage.setItem(LS_KEY, best);
+    uiBest.textContent = best;
+  }
+  shakeMag = 10; shakeDecay = 0.80;
+  state = 'gameover';
+}
+
+function handleInput() {
+  if (state === 'start') { startGame(); return; }
+  if (state === 'gameover') { startGame(); return; }
+  if (state === 'playing') {
+    if (!chainActive) {
+      // start chain from hottest visible node near center
+      let best = -1, bestH = -1;
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+        if (!n.crust && n.heat > bestH) { bestH = n.heat; best = i; }
+      }
+      if (best !== -1) {
+        chain = [best];
+        chainActive = true;
+        beatTimer = 0;
+        nodes[best].heat = Math.min(1, nodes[best].heat + 0.1);
+        spawnParticles(nodes[best].x, nodes[best].y, 6, 2.5, 20, [2,6]);
+        updateChainInfo();
+      }
+    } else {
+      // snap cash out
+      snapChain(false);
+    }
+  }
+}
+
+// ─── Input binding ────────────────────────────────────────────────────────────
+canvas.addEventListener('pointerdown', e => { e.preventDefault(); handleInput(); });
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); handleInput(); }
+});
+
+// ─── Update ───────────────────────────────────────────────────────────────────
+function update(dt) {
+  hue = (hue + dt * 8) % 360;
+
+  // particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.08;
+    p.vx *= 0.96; p.vy *= 0.96;
+    p.life -= p.decay;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  if (state !== 'playing') return;
+
+  elapsed += dt;
+
+  const coolRate = diffCoolRate();
+  // cool nodes
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
+    if (chain.includes(i)) continue; // don't cool active chain nodes
+    if (!n.crust) {
+      n.heat -= coolRate * dt * 60;
+      n.pulseT += dt * 3;
+      if (n.heat <= 0) {
+        n.heat = 0;
+        n.crust = true;
+        addWall(n);
+        spawnParticles(n.x, n.y, 3, 1.2, 5, [2, 4]);
+      }
+    }
+  }
+
+  // re-heat random nodes occasionally
+  if (Math.random() < dt * 0.7) {
+    const coolNodes = nodes.filter((n, i) => !n.crust && n.heat < 0.5 && !chain.includes(i));
+    if (coolNodes.length > 0) {
+      const pick = coolNodes[Math.floor(Math.random() * coolNodes.length)];
+      pick.heat = Math.min(1, pick.heat + 0.3 + Math.random() * 0.4);
+    }
+  }
+
+  // reset cooled-out nodes periodically
+  const crustCount = nodes.filter(n => n.crust).length;
+  if (crustCount > nodes.length * 0.55) {
+    // reset some crust nodes
+    nodes.forEach(n => {
+      if (n.crust && Math.random() < 0.04) {
+        n.crust = false;
+        n.heat = 0.5 + Math.random() * 0.5;
+      }
+    });
+  }
+
+  // beat advance
+  if (chainActive) {
+    beatTimer += dt;
+    if (beatTimer >= diffBeatTime()) {
+      beatTimer = 0;
+      advanceChain();
+    }
+  }
+
+  // shake
+  if (shakeMag > 0.1) shakeMag *= shakeDecay;
+  else shakeMag = 0;
+}
+
+// ─── Draw ─────────────────────────────────────────────────────────────────────
+function drawBg() {
+  const grad = ctx.createRadialGradient(CW/2, CH*0.4, 0, CW/2, CH*0.4, CH*0.75);
+  grad.addColorStop(0, '#2a0600');
+  grad.addColorStop(1, '#0a0000');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, CW, CH);
+}
+
+function drawWalls() {
+  for (const w of walls) {
+    ctx.save();
+    ctx.strokeStyle = `rgba(80,40,20,${w.alpha})`;
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.shadowColor = 'rgba(40,15,5,0.5)';
+    ctx.shadowBlur = 4;
+    ctx.beginPath();
+    ctx.moveTo(w.ax, w.ay);
+    ctx.lineTo(w.bx, w.by);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawNodes() {
+  const now = performance.now() / 1000;
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
+    const r = nodeRadius(n);
+    const inChain = chain.includes(i);
+
+    if (n.crust) {
+      // crust node
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r * 0.75, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(55,30,15,0.85)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(90,45,20,0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+      continue;
+    }
+
+    const pulse = Math.sin(n.pulseT + now * 2) * 0.12 + 1;
+    const pr = r * pulse;
+    const h = 15 + (1 - n.heat) * 25;
+    const s = 95;
+    const l = 30 + n.heat * 45;
+
+    // glow
+    const glow = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, pr * 2.5);
+    glow.addColorStop(0, `hsla(${h},${s}%,${l+20}%,${n.heat * 0.6})`);
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, pr * 2.5, 0, Math.PI*2);
+    ctx.fillStyle = glow;
+    ctx.fill();
+
+    // core
+    const core = ctx.createRadialGradient(n.x - pr*0.2, n.y - pr*0.2, 0, n.x, n.y, pr);
+    core.addColorStop(0, `hsla(${h+15},100%,${l+30}%,1)`);
+    core.addColorStop(0.6, `hsla(${h},${s}%,${l}%,1)`);
+    core.addColorStop(1, `hsla(${h-10},${s-10}%,${l-20}%,1)`);
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, pr, 0, Math.PI*2);
+    ctx.fillStyle = core;
+    if (inChain) {
+      ctx.shadowColor = `hsla(${h+20},100%,80%,0.9)`;
+      ctx.shadowBlur = 18;
+    }
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    if (inChain) {
+      ctx.strokeStyle = `hsla(${h+20},100%,90%,0.8)`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+}
+
+function drawChain() {
+  if (chain.length < 2) return;
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (let i = 1; i < chain.length; i++) {
+    const a = nodes[chain[i-1]], b = nodes[chain[i]];
+    const frac = i / chain.length;
+    const h = 15 + frac * 25;
+
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = `hsla(${h},100%,70%,0.85)`;
+    ctx.lineWidth = 3.5;
+    ctx.shadowColor = `hsla(${h+10},100%,80%,0.6)`;
+    ctx.shadowBlur = 12;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.save();
+    ctx.globalAlpha = p.life * 0.9;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
+    ctx.fillStyle = `hsl(${p.hue},95%,65%)`;
+    ctx.shadowColor = `hsl(${p.hue},100%,70%)`;
+    ctx.shadowBlur = 8;
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawStartScreen() {
+  // dim overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0,0,CW,CH);
+
+  ctx.save();
+  ctx.textAlign = 'center';
+
+  // title
+  ctx.font = `bold ${Math.round(CW*0.13)}px 'Segoe UI',system-ui,sans-serif`;
+  ctx.fillStyle = '#ffcc44';
+  ctx.shadowColor = '#ff6600';
+  ctx.shadowBlur = 24;
+  ctx.fillText('MAGMA', CW/2, CH*0.38);
+  ctx.font = `bold ${Math.round(CW*0.09)}px 'Segoe UI',system-ui,sans-serif`;
+  ctx.fillStyle = '#ff8844';
+  ctx.shadowColor = '#ff4400';
+  ctx.shadowBlur = 18;
+  ctx.fillText('LINK', CW/2, CH*0.38 + CW*0.13 * 1.1);
+
+  ctx.shadowBlur = 0;
+  ctx.font = `${Math.round(CW*0.042)}px 'Segoe UI',system-ui,sans-serif`;
+  ctx.fillStyle = 'rgba(255,200,100,0.8)';
+  ctx.fillText('Tap to Start', CW/2, CH*0.62);
+
+  ctx.font = `${Math.round(CW*0.032)}px 'Segoe UI',system-ui,sans-serif`;
+  ctx.fillStyle = 'rgba(255,150,60,0.55)';
+  ctx.fillText('Chain lava nodes · snap before they cool', CW/2, CH*0.69);
+
+  ctx.restore();
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillRect(0,0,CW,CH);
+
+  ctx.save();
+  ctx.textAlign = 'center';
+
+  ctx.font = `bold ${Math.round(CW*0.09)}px 'Segoe UI',system-ui,sans-serif`;
+  ctx.fillStyle = '#ff4422';
+  ctx.shadowColor = '#ff2200';
+  ctx.shadowBlur = 20;
+  ctx.fillText('CHAIN BROKEN', CW/2, CH*0.33);
+
+  ctx.shadowBlur = 0;
+  ctx.font = `${Math.round(CW*0.038)}px 'Segoe UI',system-ui,sans-serif`;
+  ctx.fillStyle = 'rgba(255,180,60,0.75)';
+  ctx.fillText('Score', CW/2, CH*0.44);
+
+  ctx.font = `bold ${Math.round(CW*0.14)}px 'Segoe UI',system-ui,sans-serif`;
+  ctx.fillStyle = '#ffcc44';
+  ctx.shadowColor = '#ff6600';
+  ctx.shadowBlur = 18;
+  ctx.fillText(score, CW/2, CH*0.54);
+
+  ctx.shadowBlur = 0;
+  ctx.font = `${Math.round(CW*0.032)}px 'Segoe UI',system-ui,sans-serif`;
+  ctx.fillStyle = 'rgba(255,150,60,0.65)';
+  ctx.fillText(`Best: ${best}`, CW/2, CH*0.62);
+
+  ctx.font = `${Math.round(CW*0.042)}px 'Segoe UI',system-ui,sans-serif`;
+  ctx.fillStyle = 'rgba(255,200,100,0.85)';
+  ctx.fillText('Tap to Retry', CW/2, CH*0.74);
+
+  ctx.restore();
+}
+
+// ─── Main loop ────────────────────────────────────────────────────────────────
+function loop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+
+  update(dt);
+
+  ctx.save();
+  if (shakeMag > 0.2) {
+    const sx = (Math.random()-0.5)*shakeMag*2;
+    const sy = (Math.random()-0.5)*shakeMag*2;
+    ctx.translate(sx, sy);
+  }
+
+  drawBg();
+  drawWalls();
+  drawParticles();
+  drawNodes();
+  drawChain();
+
+  if (state === 'start')    drawStartScreen();
+  if (state === 'gameover') drawGameOver();
+
+  ctx.restore();
+  requestAnimationFrame(loop);
+}
+
+uiBest.textContent = best;
+makeNodes(); // show something on start screen
+requestAnimationFrame(ts => { lastTime = ts; requestAnimationFrame(loop); });
+</script>
+</body>
+</html>
